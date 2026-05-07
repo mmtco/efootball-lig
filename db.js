@@ -59,7 +59,7 @@ const Auth = {
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
-      .single();
+      .maybesingle();
     if(error) return null;
     return {...data, email: session.user.email};
   },
