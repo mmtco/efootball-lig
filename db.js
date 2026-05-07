@@ -59,7 +59,6 @@ const Auth = {
     });
 
     if (error) throw error;
-
     return data;
   },
 
@@ -70,7 +69,6 @@ const Auth = {
     });
 
     if (error) throw error;
-
     return data;
   },
 
@@ -80,15 +78,12 @@ const Auth = {
 
   async getSession() {
     const { data, error } = await sb.auth.getSession();
-
     if (error) throw error;
-
     return data.session;
   },
 
   async getCurrentUser() {
     const session = await this.getSession();
-
     if (!session) return null;
 
     let { data, error } = await sb
@@ -97,12 +92,8 @@ const Auth = {
       .eq("id", session.user.id)
       .maybeSingle();
 
-    if (error) {
-      console.error(error);
-      throw error;
-    }
+    if (error) throw error;
 
-    // profil yoksa oluştur
     if (!data) {
       const username = makeUsername(session.user.email);
 
@@ -111,19 +102,14 @@ const Auth = {
         .insert({
           id: session.user.id,
           username,
-          display_name:
-            session.user.user_metadata?.display_name || username,
+          display_name: session.user.user_metadata?.display_name || username,
           is_admin: false,
           is_approved: false,
         })
         .select("*")
         .maybeSingle();
 
-      if (createErr) {
-        console.error(createErr);
-        throw createErr;
-      }
-
+      if (createErr) throw createErr;
       data = created;
     }
 
@@ -135,7 +121,6 @@ const Auth = {
 
   async resetPassword(email) {
     const { error } = await sb.auth.resetPasswordForEmail(email);
-
     if (error) throw error;
   },
 
@@ -158,7 +143,6 @@ const Profiles = {
       .order("display_name");
 
     if (error) throw error;
-
     return data || [];
   },
 
@@ -170,7 +154,6 @@ const Profiles = {
       .order("display_name");
 
     if (error) throw error;
-
     return data || [];
   },
 
@@ -182,16 +165,13 @@ const Profiles = {
       .order("created_at");
 
     if (error) throw error;
-
     return data || [];
   },
 
   async approve(userId) {
     const { error } = await sb
       .from("profiles")
-      .update({
-        is_approved: true,
-      })
+      .update({ is_approved: true })
       .eq("id", userId);
 
     if (error) throw error;
@@ -214,7 +194,6 @@ const Profiles = {
       .maybeSingle();
 
     if (error) throw error;
-
     return data;
   },
 };
@@ -232,7 +211,6 @@ const League = {
       .maybeSingle();
 
     if (error) throw error;
-
     return data;
   },
 
@@ -258,11 +236,12 @@ const Matches = {
       .order("round");
 
     if (error) throw error;
-
     return data || [];
   },
 
   async createBatch(matches) {
+    if (!matches || matches.length === 0) return;
+
     const { error } = await sb
       .from("matches")
       .insert(matches);
@@ -304,7 +283,6 @@ const Cup = {
       .maybeSingle();
 
     if (error) throw error;
-
     return data;
   },
 
@@ -317,7 +295,6 @@ const Cup = {
       .order("pair_index");
 
     if (error) throw error;
-
     return data || [];
   },
 
@@ -334,22 +311,21 @@ const Cup = {
       .maybeSingle();
 
     if (error) throw error;
-
     return data;
   },
 
   async deactivateOthers() {
     const { error } = await sb
       .from("cup")
-      .update({
-        is_active: false,
-      })
+      .update({ is_active: false })
       .eq("is_active", true);
 
     if (error) throw error;
   },
 
   async createMatches(matches) {
+    if (!matches || matches.length === 0) return;
+
     const { error } = await sb
       .from("cup_matches")
       .insert(matches);
@@ -365,6 +341,22 @@ const Cup = {
 
     if (error) throw error;
   },
+
+  async deleteAll() {
+    const { error: e1 } = await sb
+      .from("cup_matches")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (e1) throw e1;
+
+    const { error: e2 } = await sb
+      .from("cup")
+      .delete()
+      .neq("id", "00000000-0000-0000-0000-000000000000");
+
+    if (e2) throw e2;
+  },
 };
 
 // =====================================================
@@ -374,7 +366,6 @@ const Cup = {
 const Notifications = {
   async listMine() {
     const session = await Auth.getSession();
-
     if (!session) return [];
 
     const { data, error } = await sb
@@ -384,16 +375,13 @@ const Notifications = {
       .order("created_at", { ascending: false });
 
     if (error) throw error;
-
     return data || [];
   },
 
   async markRead(id) {
     const { error } = await sb
       .from("notifications")
-      .update({
-        is_read: true,
-      })
+      .update({ is_read: true })
       .eq("id", id);
 
     if (error) throw error;
