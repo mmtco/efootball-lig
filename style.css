@@ -10,9 +10,9 @@ body{
     radial-gradient(1200px 600px at 80% -10%, rgba(0,212,255,.08), transparent 60%),
     radial-gradient(900px 500px at -10% 110%, rgba(0,255,136,.06), transparent 60%),
     var(--bg);
-  min-height:100vh;padding-bottom:90px;
+  min-height:100vh;padding-bottom:150px;
 }
-.app{max-width:480px;margin:0 auto;padding:16px 14px 0}
+.app{max-width:480px;margin:0 auto;padding:16px 14px 120px}
 
 /* Loading */
 #loadingScreen{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--bg);z-index:300}
