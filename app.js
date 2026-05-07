@@ -166,9 +166,9 @@ function calcStandings(){
   const tbl = allProfiles
     .filter(p => !p.is_admin)
     .map(p => ({
-    id: p.id, name: p.display_name,
-    o:0,g:0,b:0,m:0,ag:0,yg:0,av:0,p:0
-  }));
+      id: p.id, name: p.display_name,
+      o:0,g:0,b:0,m:0,ag:0,yg:0,av:0,p:0
+    }));
   const map = {}; tbl.forEach(r => map[r.id] = r);
   
   allMatches.filter(f => f.status === 'played').forEach(f => {
@@ -240,8 +240,7 @@ function renderUser(){
   $('tabAdmin').style.display = currentUser.is_admin ? 'block' : 'none';
   $('navAdmin').style.display = currentUser.is_admin ? 'flex' : 'none';
   $('heroLeague').textContent = (leagueData.name || 'Lig').toUpperCase();
-  const playerCount = allProfiles.filter(p => !p.is_admin).length;
-  $('heroSub').textContent = `Sezon ${leagueData.season || 1} · ${playerCount} oyuncu`;
+  $('heroSub').textContent = `Sezon ${leagueData.season || 1} · ${allProfiles.filter(p => !p.is_admin).length} oyuncu`;
 }
 
 function renderAll(){
@@ -276,7 +275,7 @@ function renderStandings(){
     return;
   }
   
-  const total = standings.length;
+  const total = allProfiles.length;
   let html = '<div class="table-wrap"><div class="table-head"><div>#</div><div>Oyuncu</div><div>O</div><div>G</div><div>A</div><div>P</div></div>';
   standings.forEach((s, idx) => {
     const rank = idx + 1;
@@ -317,13 +316,8 @@ function renderFixtures(){
   let list = allMatches.slice();
   if(fixtureFilter === 'pending') list = list.filter(f => f.status !== 'played');
   if(fixtureFilter === 'played') list = list.filter(f => f.status === 'played');
-  const grouped = {};
-  list.forEach(f => { if(!grouped[f.round]) grouped[f.round]=[]; grouped[f.round].push(f); });
-  let html = '';
-  Object.keys(grouped).sort((a,b) => parseInt(a)-parseInt(b)).forEach(r => {
-    html += grouped[r].map(matchCard).join('');
-  });
-  $('fixtureList').innerHTML = html;
+  list.sort((a,b) => (a.round || 0) - (b.round || 0) || new Date(a.created_at || 0) - new Date(b.created_at || 0));
+  $('fixtureList').innerHTML = list.map(matchCard).join('');
   $('filterAllBtn').classList.toggle('primary', fixtureFilter==='all');
   $('filterPendingBtn').classList.toggle('primary', fixtureFilter==='pending');
   $('filterPlayedBtn').classList.toggle('primary', fixtureFilter==='played');
@@ -464,9 +458,156 @@ async function renderAdmin(){
   $('playerList').innerHTML = leaguePlayers.map(p => `
     <div class="player-item">
       <div class="avatar">${initials(p.display_name)}</div>
-      <div class="pname">${p.display_name}${p.is_admin?' <span style="font-size:9px;color:var(--gold);font-weight:700">★ ADMIN</span>':''}</div>
+      <div class="pname">${p.display_name}</div>
     </div>`).join('');
+
+  renderAdminMatches();
 }
+
+
+function renderAdminMatches(){
+  if(!isAdmin() || !$('adminMatchList')) return;
+
+  if(allMatches.length === 0){
+    $('adminMatchList').innerHTML = '<div style="padding:12px;text-align:center;color:var(--ink-mute);font-size:12px">Henüz maç yok</div>';
+    return;
+  }
+
+  const statusLabel = {
+    open: 'Oynanmadı',
+    pending: 'Onay Bekliyor',
+    played: 'Tamamlandı',
+    disputed: 'İtirazlı'
+  };
+
+  const list = allMatches
+    .slice()
+    .sort((a,b) => (a.round || 0) - (b.round || 0) || new Date(a.created_at || 0) - new Date(b.created_at || 0));
+
+  $('adminMatchList').innerHTML = list.map(f => {
+    const home = findProfile(f.home_id);
+    const away = findProfile(f.away_id);
+    if(!home || !away) return '';
+
+    const score = f.status === 'played'
+      ? `${f.home_score} - ${f.away_score}`
+      : f.status === 'pending'
+        ? `${f.proposed_home} - ${f.proposed_away}`
+        : '—';
+
+    return `
+      <div class="player-item">
+        <div class="pname">${home.display_name} - ${away.display_name}</div>
+        <div class="pcode">${score}</div>
+        <div class="pcode">${statusLabel[f.status] || f.status}</div>
+        <button class="approve" onclick="window.adminEditMatch('${f.id}')">Düzenle</button>
+        <button class="reject" onclick="window.adminResetMatch('${f.id}')">Sıfırla</button>
+      </div>`;
+  }).join('');
+}
+
+window.adminEditMatch = function(matchId){
+  const f = allMatches.find(x => x.id === matchId);
+  if(!f) return;
+
+  const home = findProfile(f.home_id);
+  const away = findProfile(f.away_id);
+  if(!home || !away) return;
+
+  const hs = f.status === 'played' ? f.home_score : (f.proposed_home ?? '');
+  const as = f.status === 'played' ? f.away_score : (f.proposed_away ?? '');
+
+  openGenericModal({
+    title: 'Maçı Düzenle',
+    body: `<div class="who">${home.display_name} vs ${away.display_name}</div>
+      <div class="info-note">Admin olarak skoru doğrudan tamamlanmış sonuç yaparsın.</div>
+      <div class="score-input">
+        <div class="si-side">
+          <div class="pname">${home.display_name}</div>
+          <input type="number" min="0" max="30" id="adminHomeScore" class="score-num" value="${hs}" />
+        </div>
+        <div class="si-dash">—</div>
+        <div class="si-side">
+          <div class="pname">${away.display_name}</div>
+          <input type="number" min="0" max="30" id="adminAwayScore" class="score-num" value="${as}" />
+        </div>
+      </div>`,
+    actions: [
+      {label:'İptal', cls:'ghost', fn: closeGenericModal},
+      {label:'Kaydet', cls:'primary', fn: async () => {
+        const h = parseInt($('adminHomeScore').value);
+        const a = parseInt($('adminAwayScore').value);
+
+        if(isNaN(h) || isNaN(a) || h < 0 || a < 0 || h > 30 || a > 30){
+          toast('Geçerli skor gir','warn');
+          return;
+        }
+
+        setLoading(true);
+        try {
+          await Matches.update(f.id, {
+            status: 'played',
+            home_score: h,
+            away_score: a,
+            proposed_by: null,
+            proposed_home: null,
+            proposed_away: null,
+            played_at: new Date().toISOString()
+          });
+          await reload();
+          closeGenericModal();
+          toast('Maç güncellendi ✓','ok');
+        } catch(err){
+          toast('Hata: ' + err.message, 'bad');
+        }
+        setLoading(false);
+      }}
+    ]
+  });
+
+  setTimeout(() => $('adminHomeScore')?.focus(), 200);
+};
+
+window.adminResetMatch = function(matchId){
+  const f = allMatches.find(x => x.id === matchId);
+  if(!f) return;
+
+  const home = findProfile(f.home_id);
+  const away = findProfile(f.away_id);
+  if(!home || !away) return;
+
+  openGenericModal({
+    title: 'Maçı Sıfırla',
+    body: `<div class="info-note bad">${home.display_name} - ${away.display_name} maçı oynanmamış hale getirilecek.</div>`,
+    actions: [
+      {label:'İptal', cls:'ghost', fn: closeGenericModal},
+      {label:'Sıfırla', cls:'danger', fn: async () => {
+        setLoading(true);
+        try {
+          await Matches.update(f.id, {
+            status: 'open',
+            home_score: null,
+            away_score: null,
+            proposed_by: null,
+            proposed_home: null,
+            proposed_away: null,
+            proposed_home_scorers: [],
+            proposed_away_scorers: [],
+            home_scorers: [],
+            away_scorers: [],
+            played_at: null
+          });
+          await reload();
+          closeGenericModal();
+          toast('Maç sıfırlandı','ok');
+        } catch(err){
+          toast('Hata: ' + err.message, 'bad');
+        }
+        setLoading(false);
+      }}
+    ]
+  });
+};
 
 // =====================================================
 // PAGE NAV
@@ -778,8 +919,7 @@ function init(){
   });
 
   $('generateFixtureBtn').addEventListener('click', () => {
-    const leaguePlayers = allProfiles.filter(p => !p.is_admin);
-    if(leaguePlayers.length < 2){ toast('En az 2 onaylı oyuncu gerekli','warn'); return; }
+    if(allProfiles.filter(p => !p.is_admin).length < 2){ toast('En az 2 onaylı oyuncu gerekli','warn'); return; }
     const doIt = async () => {
       setLoading(true);
       try {
@@ -808,7 +948,7 @@ function init(){
   });
 
   $('startCupBtn').addEventListener('click', () => {
-    const sizes = [4,8,16].filter(s => s <= allProfiles.length);
+    const sizes = [4,8,16].filter(s => s <= allProfiles.filter(p => !p.is_admin).length);
     if(sizes.length === 0){ toast('En az 4 oyuncu gerekli','warn'); return; }
     const btnHTML = sizes.map(s => `<button class="btn ghost" onclick="window.createCup(${s})">${s} kişi</button>`).join('');
     openGenericModal({
