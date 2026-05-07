@@ -166,17 +166,9 @@ function calcStandings(){
   const tbl = allProfiles
     .filter(p => !p.is_admin)
     .map(p => ({
-      id: p.id,
-      name: p.display_name,
-      o:0,
-      g:0,
-      b:0,
-      m:0,
-      ag:0,
-      yg:0,
-      av:0,
-      p:0
-    }));
+    id: p.id, name: p.display_name,
+    o:0,g:0,b:0,m:0,ag:0,yg:0,av:0,p:0
+  }));
   const map = {}; tbl.forEach(r => map[r.id] = r);
   
   allMatches.filter(f => f.status === 'played').forEach(f => {
@@ -248,7 +240,8 @@ function renderUser(){
   $('tabAdmin').style.display = currentUser.is_admin ? 'block' : 'none';
   $('navAdmin').style.display = currentUser.is_admin ? 'flex' : 'none';
   $('heroLeague').textContent = (leagueData.name || 'Lig').toUpperCase();
-  $('heroSub').textContent = `Sezon ${leagueData.season || 1} · ${allProfiles.length} oyuncu`;
+  const playerCount = allProfiles.filter(p => !p.is_admin).length;
+  $('heroSub').textContent = `Sezon ${leagueData.season || 1} · ${playerCount} oyuncu`;
 }
 
 function renderAll(){
@@ -283,7 +276,7 @@ function renderStandings(){
     return;
   }
   
-  const total = allProfiles.length;
+  const total = standings.length;
   let html = '<div class="table-wrap"><div class="table-head"><div>#</div><div>Oyuncu</div><div>O</div><div>G</div><div>A</div><div>P</div></div>';
   standings.forEach((s, idx) => {
     const rank = idx + 1;
@@ -328,9 +321,7 @@ function renderFixtures(){
   list.forEach(f => { if(!grouped[f.round]) grouped[f.round]=[]; grouped[f.round].push(f); });
   let html = '';
   Object.keys(grouped).sort((a,b) => parseInt(a)-parseInt(b)).forEach(r => {
-    html += `<div style="margin-bottom:14px">
-      <div style="font-size:10px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:1.5px;margin:8px 4px;font-weight:700">Hafta ${r}</div>
-      ${grouped[r].map(matchCard).join('')}</div>`;
+    html += grouped[r].map(matchCard).join('');
   });
   $('fixtureList').innerHTML = html;
   $('filterAllBtn').classList.toggle('primary', fixtureFilter==='all');
@@ -374,7 +365,7 @@ function matchCard(f){
 function renderScorers(){
   // Şimdilik sadece atılan goller (gol kralı detayı v2'de)
   const map = {};
-  allProfiles.forEach(p => { map[p.id] = {id:p.id, name:p.display_name, goals:0, matches:0}; });
+  allProfiles.filter(p => !p.is_admin).forEach(p => { map[p.id] = {id:p.id, name:p.display_name, goals:0, matches:0}; });
   allMatches.filter(f => f.status === 'played').forEach(f => {
     if(map[f.home_id]){ map[f.home_id].goals += f.home_score; map[f.home_id].matches++; }
     if(map[f.away_id]){ map[f.away_id].goals += f.away_score; map[f.away_id].matches++; }
@@ -468,8 +459,9 @@ async function renderAdmin(){
   }
   
   // Approved players
-  $('playerCount').textContent = allProfiles.length;
-  $('playerList').innerHTML = allProfiles.map(p => `
+  const leaguePlayers = allProfiles.filter(p => !p.is_admin);
+  $('playerCount').textContent = leaguePlayers.length;
+  $('playerList').innerHTML = leaguePlayers.map(p => `
     <div class="player-item">
       <div class="avatar">${initials(p.display_name)}</div>
       <div class="pname">${p.display_name}${p.is_admin?' <span style="font-size:9px;color:var(--gold);font-weight:700">★ ADMIN</span>':''}</div>
@@ -786,7 +778,8 @@ function init(){
   });
 
   $('generateFixtureBtn').addEventListener('click', () => {
-    if(allProfiles.length < 2){ toast('En az 2 onaylı oyuncu gerekli','warn'); return; }
+    const leaguePlayers = allProfiles.filter(p => !p.is_admin);
+    if(leaguePlayers.length < 2){ toast('En az 2 onaylı oyuncu gerekli','warn'); return; }
     const doIt = async () => {
       setLoading(true);
       try {
