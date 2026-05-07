@@ -1,16 +1,15 @@
 // =====================================================
-// VERİTABANI KATMANI
-// Tüm Supabase çağrıları burada
+// VERITABANI KATMANI
 // =====================================================
 
-let supabase = null;
+let sb = null;
 
 function initSupabase(){
   if(!window.SUPABASE_CONFIG || !window.SUPABASE_CONFIG.url || window.SUPABASE_CONFIG.url.includes('BURAYA')){
-    alert('config.js dosyasındaki Supabase bilgilerini doldurmayı unutma!');
+    alert('config.js dosyasindaki Supabase bilgilerini doldurmayi unutma!');
     return false;
   }
-  supabase = window.supabase.createClient(
+  sb = window.supabase.createClient(
     window.SUPABASE_CONFIG.url,
     window.SUPABASE_CONFIG.anonKey
   );
@@ -22,12 +21,11 @@ function initSupabase(){
 // =====================================================
 const Auth = {
   async signUp(email, password, displayName){
-    const {data, error} = await supabase.auth.signUp({email, password});
+    const {data, error} = await sb.auth.signUp({email, password});
     if(error) throw error;
     if(data.user){
-      // Profil oluştur (trigger yerine manuel)
       const username = email.split('@')[0].toLowerCase().replace(/[^a-z0-9]/g,'') + Math.floor(Math.random()*1000);
-      const {error: pErr} = await supabase.from('profiles').insert({
+      const {error: pErr} = await sb.from('profiles').insert({
         id: data.user.id,
         username: username,
         display_name: displayName || username,
@@ -40,24 +38,24 @@ const Auth = {
   },
 
   async signIn(email, password){
-    const {data, error} = await supabase.auth.signInWithPassword({email, password});
+    const {data, error} = await sb.auth.signInWithPassword({email, password});
     if(error) throw error;
     return data;
   },
 
   async signOut(){
-    await supabase.auth.signOut();
+    await sb.auth.signOut();
   },
 
   async getSession(){
-    const {data} = await supabase.auth.getSession();
+    const {data} = await sb.auth.getSession();
     return data.session;
   },
 
   async getCurrentUser(){
     const session = await this.getSession();
     if(!session) return null;
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('profiles')
       .select('*')
       .eq('id', session.user.id)
@@ -67,12 +65,8 @@ const Auth = {
   },
 
   async resetPassword(email){
-    const {error} = await supabase.auth.resetPasswordForEmail(email);
+    const {error} = await sb.auth.resetPasswordForEmail(email);
     if(error) throw error;
-  },
-
-  onAuthChange(callback){
-    return supabase.auth.onAuthStateChange((event, session) => callback(event, session));
   }
 };
 
@@ -81,13 +75,13 @@ const Auth = {
 // =====================================================
 const Profiles = {
   async listAll(){
-    const {data, error} = await supabase.from('profiles').select('*').order('display_name');
+    const {data, error} = await sb.from('profiles').select('*').order('display_name');
     if(error) throw error;
     return data || [];
   },
 
   async listApproved(){
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('profiles')
       .select('*')
       .eq('is_approved', true)
@@ -97,7 +91,7 @@ const Profiles = {
   },
 
   async listPending(){
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('profiles')
       .select('*')
       .eq('is_approved', false)
@@ -107,7 +101,7 @@ const Profiles = {
   },
 
   async approve(userId){
-    const {error} = await supabase
+    const {error} = await sb
       .from('profiles')
       .update({is_approved: true})
       .eq('id', userId);
@@ -115,9 +109,7 @@ const Profiles = {
   },
 
   async reject(userId){
-    // RLS yüzünden auth.users'tan silmek için admin gerekiyor
-    // Şimdilik sadece profile silelim
-    const {error} = await supabase
+    const {error} = await sb
       .from('profiles')
       .delete()
       .eq('id', userId);
@@ -125,7 +117,7 @@ const Profiles = {
   },
 
   async findById(id){
-    const {data} = await supabase.from('profiles').select('*').eq('id', id).single();
+    const {data} = await sb.from('profiles').select('*').eq('id', id).single();
     return data;
   }
 };
@@ -135,7 +127,7 @@ const Profiles = {
 // =====================================================
 const League = {
   async get(){
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('league_settings')
       .select('*')
       .eq('id', 1)
@@ -145,7 +137,7 @@ const League = {
   },
 
   async update(updates){
-    const {error} = await supabase
+    const {error} = await sb
       .from('league_settings')
       .update(updates)
       .eq('id', 1);
@@ -158,7 +150,7 @@ const League = {
 // =====================================================
 const Matches = {
   async listAll(){
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('matches')
       .select('*')
       .order('round')
@@ -168,12 +160,12 @@ const Matches = {
   },
 
   async createBatch(matches){
-    const {error} = await supabase.from('matches').insert(matches);
+    const {error} = await sb.from('matches').insert(matches);
     if(error) throw error;
   },
 
   async update(id, updates){
-    const {error} = await supabase
+    const {error} = await sb
       .from('matches')
       .update(updates)
       .eq('id', id);
@@ -181,7 +173,7 @@ const Matches = {
   },
 
   async deleteAll(){
-    const {error} = await supabase
+    const {error} = await sb
       .from('matches')
       .delete()
       .neq('id', '00000000-0000-0000-0000-000000000000');
@@ -194,7 +186,7 @@ const Matches = {
 // =====================================================
 const Cup = {
   async getActive(){
-    const {data} = await supabase
+    const {data} = await sb
       .from('cup')
       .select('*')
       .eq('is_active', true)
@@ -205,7 +197,7 @@ const Cup = {
   },
 
   async getMatches(cupId){
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('cup_matches')
       .select('*')
       .eq('cup_id', cupId)
@@ -216,7 +208,7 @@ const Cup = {
   },
 
   async create(name, size, season){
-    const {data, error} = await supabase
+    const {data, error} = await sb
       .from('cup')
       .insert({name, size, season, is_active: true})
       .select()
@@ -226,21 +218,21 @@ const Cup = {
   },
 
   async deactivateOthers(){
-    await supabase.from('cup').update({is_active: false}).eq('is_active', true);
+    await sb.from('cup').update({is_active: false}).eq('is_active', true);
   },
 
   async createMatches(matches){
-    const {error} = await supabase.from('cup_matches').insert(matches);
+    const {error} = await sb.from('cup_matches').insert(matches);
     if(error) throw error;
   },
 
   async updateMatch(id, updates){
-    const {error} = await supabase.from('cup_matches').update(updates).eq('id', id);
+    const {error} = await sb.from('cup_matches').update(updates).eq('id', id);
     if(error) throw error;
   },
 
   async deleteAll(){
-    await supabase.from('cup_matches').delete().neq('id','00000000-0000-0000-0000-000000000000');
-    await supabase.from('cup').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    await sb.from('cup_matches').delete().neq('id','00000000-0000-0000-0000-000000000000');
+    await sb.from('cup').delete().neq('id','00000000-0000-0000-0000-000000000000');
   }
 };
