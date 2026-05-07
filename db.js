@@ -117,7 +117,7 @@ const Profiles = {
   },
 
   async findById(id){
-    const {data} = await sb.from('profiles').select('*').eq('id', id).single();
+    const {data} = await sb.from('profiles').select('*').eq('id', id).maybesingle();
     return data;
   }
 };
@@ -131,7 +131,7 @@ const League = {
       .from('league_settings')
       .select('*')
       .eq('id', 1)
-      .single();
+      .maybesingle();
     if(error) throw error;
     return data;
   },
@@ -212,7 +212,7 @@ const Cup = {
       .from('cup')
       .insert({name, size, season, is_active: true})
       .select()
-      .single();
+      .maybesingle();
     if(error) throw error;
     return data;
   },
