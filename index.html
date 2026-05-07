@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0a0e1a" />
+<title>eFootball Lig</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=JetBrains+Mono:wght@400;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- =================== LOADING =================== -->
+<div id="loadingScreen">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Yükleniyor...</div>
+</div>
+
+<!-- =================== AUTH SCREEN =================== -->
+<div id="authScreen" class="auth-screen" style="display:none">
+  <div class="auth-logo">e<span>FOOT</span> LIG</div>
+  <div class="auth-tag">Arkadaş ligini yönet</div>
+
+  <div class="auth-card">
+    <div class="auth-tabs">
+      <div class="auth-tab active" data-auth="login">Giriş</div>
+      <div class="auth-tab" data-auth="signup">Kayıt</div>
+    </div>
+
+    <!-- LOGIN -->
+    <div id="authLogin">
+      <div class="field">
+        <label>Email</label>
+        <input id="loginEmail" type="email" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Şifre</label>
+        <input id="loginPass" type="password" autocomplete="current-password" />
+      </div>
+      <button class="btn primary full" id="loginBtn">Giriş Yap</button>
+      <div class="auth-link" id="forgotLink">Şifremi unuttum</div>
+    </div>
+
+    <!-- SIGNUP -->
+    <div id="authSignup" style="display:none">
+      <div class="info-note">Kayıt sonrası email adresine doğrulama maili gelir. Doğruladıktan sonra yönetici onayı bekleyeceksin.</div>
+      <div class="field">
+        <label>İsim (görünecek ad)</label>
+        <input id="signupName" placeholder="Ahmet" maxlength="20" />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input id="signupEmail" type="email" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Şifre (en az 6 karakter)</label>
+        <input id="signupPass" type="password" autocomplete="new-password" />
+      </div>
+      <button class="btn primary full" id="signupBtn">Kayıt Ol</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== PENDING APPROVAL =================== -->
+<div id="pendingScreen" class="pending-screen" style="display:none">
+  <div class="pending-icon">⏳</div>
+  <h2>Onay Bekleniyor</h2>
+  <p>Kaydın başarılı! Yönetici hesabını onayladığında giriş yapabileceksin.</p>
+  <p class="muted">Bu sayfayı yenileyip durumunu kontrol edebilirsin.</p>
+  <button class="btn ghost" id="refreshPendingBtn">Yenile</button>
+  <button class="btn ghost" id="logoutPendingBtn">Çıkış</button>
+</div>
+
+<!-- =================== EMAIL VERIFY NOTICE =================== -->
+<div id="verifyScreen" class="pending-screen" style="display:none">
+  <div class="pending-icon">📧</div>
+  <h2>Email Doğrulaması</h2>
+  <p>Email adresine doğrulama linki gönderdik.</p>
+  <p class="muted">Spam klasörünü de kontrol et. Link'e tıkladıktan sonra geri dön ve giriş yap.</p>
+  <button class="btn primary" id="goLoginBtn">Giriş Sayfasına Dön</button>
+</div>
+
+<!-- =================== MAIN APP =================== -->
+<div id="mainApp" class="app" style="display:none">
+
+  <div class="topbar">
+    <div class="logo">e<span>FOOT</span> LIG</div>
+    <div class="me-chip" id="meChip">
+      <div class="av" id="meAv">--</div>
+      <span id="meName">—</span>
+      <span class="badge-admin" id="meAdmin" style="display:none">Admin</span>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="sub" id="heroSub">—</div>
+    <h2 id="heroLeague">—</h2>
+    <div class="stats">
+      <div class="stat"><div class="v" id="hStanding">—</div><div class="k">Sıran</div></div>
+      <div class="stat"><div class="v" id="hPoints">—</div><div class="k">Puan</div></div>
+      <div class="stat"><div class="v" id="hPending">—</div><div class="k">İşlem Var</div></div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-page="standings">Puan</div>
+    <div class="tab" data-page="fixtures">Fikstür</div>
+    <div class="tab" data-page="cup">Kupa</div>
+    <div class="tab" data-page="scorers">Krallık</div>
+    <div class="tab" data-page="admin" id="tabAdmin" style="display:none">Yönetim</div>
+  </div>
+
+  <div class="page active" id="page-standings">
+    <div id="standingsContainer"></div>
+    <div class="section-title"><h3>Senin Maçların</h3><span class="badge" id="myMatchCount">—</span></div>
+    <div id="myMatches"></div>
+  </div>
+
+  <div class="page" id="page-fixtures">
+    <div class="section-title">
+      <h3>Tüm Maçlar</h3>
+      <div style="display:flex;gap:6px">
+        <button class="mini-btn primary" id="filterAllBtn">Hepsi</button>
+        <button class="mini-btn" id="filterPendingBtn">Bekleyen</button>
+        <button class="mini-btn" id="filterPlayedBtn">Oynanan</button>
+      </div>
+    </div>
+    <div id="fixtureList"></div>
+  </div>
+
+  <div class="page" id="page-cup">
+    <div class="section-title"><h3 id="cupTitle">Sezon Kupası</h3></div>
+    <div id="cupContainer"></div>
+  </div>
+
+  <div class="page" id="page-scorers">
+    <div class="section-title"><h3>Gol Krallığı</h3><span class="badge" id="totalGoals">—</span></div>
+    <div class="table-wrap" id="scorersList"></div>
+  </div>
+
+  <div class="page" id="page-admin">
+    <!-- BEKLEYEN ÜYELER -->
+    <div class="admin-section">
+      <h4>Bekleyen Üyeler <span class="badge-count" id="pendingCount"></span></h4>
+      <div class="desc">Kayıt olan kullanıcıları onayla veya reddet.</div>
+      <div id="pendingList" class="player-list"></div>
+    </div>
+
+    <!-- LİG AYARLARI -->
+    <div class="admin-section">
+      <h4>Lig Ayarları</h4>
+      <div class="field"><label>Lig Adı</label><input id="adminLeagueName" /></div>
+      <div class="field">
+        <label>Maç Formatı</label>
+        <select id="adminFormat">
+          <option value="single">Tek devreli</option>
+          <option value="double">Çift devreli</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Maç Süresi (gün)</label>
+        <input id="adminDeadlineDays" type="number" min="1" max="60" value="14" />
+      </div>
+      <button class="btn primary full" id="saveSettingsBtn">Kaydet</button>
+    </div>
+
+    <!-- OYUNCULAR -->
+    <div class="admin-section">
+      <h4>Onaylı Oyuncular <span class="badge-count" id="playerCount"></span></h4>
+      <div class="desc">Lige kayıtlı tüm oyuncular.</div>
+      <div id="playerList" class="player-list"></div>
+    </div>
+
+    <!-- FİKSTÜR -->
+    <div class="admin-section">
+      <h4>Fikstür</h4>
+      <div class="desc">Oyuncuları onayladıysan fikstürü oluştur.</div>
+      <button class="btn primary full" id="generateFixtureBtn">Fikstür Oluştur</button>
+    </div>
+
+    <!-- KUPA -->
+    <div class="admin-section">
+      <h4>Kupa</h4>
+      <div class="desc">4, 8 veya 16 oyunculu eleme kupası başlat.</div>
+      <button class="btn primary full" id="startCupBtn">Kupa Başlat</button>
+    </div>
+
+    <!-- TEHLİKELİ BÖLGE -->
+    <div class="admin-section danger-zone">
+      <h4>Tehlikeli Bölge</h4>
+      <div class="desc">Sezonu sıfırla — fikstür ve sonuçlar silinir.</div>
+      <button class="btn danger full" id="resetSeasonBtn">Sezonu Sıfırla</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== NAV =================== -->
+<div class="navbar" id="navbar" style="display:none">
+  <div class="nav-inner">
+    <button class="nav-btn active" data-page="standings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l3-9 4 18 3-9h4"/></svg>Lig</button>
+    <button class="nav-btn" data-page="fixtures"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Fikstür</button>
+    <button class="nav-btn" data-page="cup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6m12 5h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>Kupa</button>
+    <button class="nav-btn" data-page="scorers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>Krallık</button>
+    <button class="nav-btn" data-page="admin" id="navAdmin" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Yönetim</button>
+  </div>
+</div>
+
+<!-- =================== MATCH MODAL =================== -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitle">Skor Gir</h3>
+    <div class="who" id="modalWho">—</div>
+    <div class="info-note" id="modalInfo">Skoru gir.</div>
+    <div class="score-input">
+      <div class="si-side"><div class="pname" id="mHome">—</div><input type="number" min="0" max="20" id="hScore" inputmode="numeric" class="score-num" /></div>
+      <div class="si-dash">—</div>
+      <div class="si-side"><div class="pname" id="mAway">—</div><input type="number" min="0" max="20" id="aScore" inputmode="numeric" class="score-num" /></div>
+    </div>
+    <div class="actions" id="modalActions">
+      <button class="btn ghost" id="modalCancel">İptal</button>
+      <button class="btn primary" id="modalSave">Kaydet</button>
+    </div>
+  </div>
+</div>
+
+<!-- =================== GENERIC MODAL =================== -->
+<div class="modal-bg" id="genericModalBg">
+  <div class="modal" id="genericModal"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- =================== SCRIPTS =================== -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="db.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
