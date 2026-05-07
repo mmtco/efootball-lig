@@ -186,7 +186,7 @@ function calcStandings(){
 }
 
 function generateFixtureRounds(format){
-  const ps = allProfiles.slice();
+  const ps = allProfiles.filter(p => !p.is_admin);
   if(ps.length < 2) return [];
   
   const isOdd = ps.length % 2 === 1;
