@@ -351,7 +351,7 @@ function matchCard(f){
     metaHTML = `<div>İhtilaflı</div><span class="pill bad">Yöneticide</span>`;
   } else {
     scoreHTML = `<div class="score empty">– : –</div>`;
-    metaHTML = `<div>Hafta ${f.round}</div><span class="pill wait">Oynanmadı</span>`;
+    metaHTML = `<div></div><span class="pill wait">Oynanmadı</span>`;
   }
   
   const clickable = (meIn && f.status!=='played' && f.status!=='disputed') || isAdmin();
