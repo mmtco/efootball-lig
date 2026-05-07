@@ -163,10 +163,20 @@ async function handleLogout(){
 // CALCULATIONS (lokal)
 // =====================================================
 function calcStandings(){
-  const tbl = allProfiles.map(p => ({
-    id: p.id, name: p.display_name,
-    o:0,g:0,b:0,m:0,ag:0,yg:0,av:0,p:0
-  }));
+  const tbl = allProfiles
+    .filter(p => !p.is_admin)
+    .map(p => ({
+      id: p.id,
+      name: p.display_name,
+      o:0,
+      g:0,
+      b:0,
+      m:0,
+      ag:0,
+      yg:0,
+      av:0,
+      p:0
+    }));
   const map = {}; tbl.forEach(r => map[r.id] = r);
   
   allMatches.filter(f => f.status === 'played').forEach(f => {
