@@ -1,11 +1,10 @@
 // =====================================================
-// eFootball Lig - Ana Uygulama
+// eFootball Lig - Ana Uygulama (Dashboard versiyonu)
 // =====================================================
 
 (function(){
 'use strict';
 
-// State
 let currentUser = null;
 let allProfiles = [];
 let allMatches = [];
@@ -15,9 +14,6 @@ let cupMatches = [];
 let currentMatchId = null;
 let fixtureFilter = 'all';
 
-// =====================================================
-// HELPERS
-// =====================================================
 function $(id){ return document.getElementById(id); }
 function initials(n){ return (n||'??').slice(0,2).toUpperCase(); }
 function findProfile(id){ return allProfiles.find(p => p.id === id); }
@@ -40,14 +36,10 @@ function setLoading(show){
 function hideAll(){
   $('authScreen').style.display = 'none';
   $('mainApp').style.display = 'none';
-  $('navbar').style.display = 'none';
   $('pendingScreen').style.display = 'none';
   $('verifyScreen').style.display = 'none';
 }
 
-// =====================================================
-// AUTH FLOW
-// =====================================================
 async function bootApp(){
   setLoading(true);
   try {
@@ -61,7 +53,6 @@ async function bootApp(){
     
     currentUser = await Auth.getCurrentUser();
     if(!currentUser){
-      // Profile yok, oluştur
       hideAll();
       $('authScreen').style.display = 'flex';
       setLoading(false);
@@ -79,8 +70,7 @@ async function bootApp(){
 
     await loadAllData();
     hideAll();
-    $('mainApp').style.display = 'block';
-    $('navbar').style.display = 'block';
+    $('mainApp').style.display = 'grid';
     renderUser();
     renderAll();
     showPage('standings');
@@ -110,18 +100,13 @@ async function loadAllData(){
   }
 }
 
-// =====================================================
-// SIGN UP / LOGIN
-// =====================================================
 async function handleSignup(){
   const name = $('signupName').value.trim();
   const email = $('signupEmail').value.trim().toLowerCase();
   const pass = $('signupPass').value;
-  
   if(!name){ toast('İsim gir','warn'); return; }
   if(!email || !email.includes('@')){ toast('Geçerli email gir','warn'); return; }
   if(pass.length < 6){ toast('Şifre en az 6 karakter','warn'); return; }
-  
   setLoading(true);
   try {
     await Auth.signUp(email, pass, name);
@@ -138,7 +123,6 @@ async function handleLogin(){
   const email = $('loginEmail').value.trim().toLowerCase();
   const pass = $('loginPass').value;
   if(!email || !pass){ toast('Email ve şifre gir','warn'); return; }
-  
   setLoading(true);
   try {
     await Auth.signIn(email, pass);
@@ -159,18 +143,9 @@ async function handleLogout(){
   location.reload();
 }
 
-// =====================================================
-// CALCULATIONS (lokal)
-// =====================================================
 function calcStandings(){
-  const tbl = allProfiles
-    .filter(p => !p.is_admin)
-    .map(p => ({
-      id: p.id, name: p.display_name,
-      o:0,g:0,b:0,m:0,ag:0,yg:0,av:0,p:0
-    }));
+  const tbl = allProfiles.map(p => ({id:p.id, name:p.display_name, o:0,g:0,b:0,m:0,ag:0,yg:0,av:0,p:0}));
   const map = {}; tbl.forEach(r => map[r.id] = r);
-  
   allMatches.filter(f => f.status === 'played').forEach(f => {
     const h = map[f.home_id], a = map[f.away_id];
     if(!h || !a) return;
@@ -181,23 +156,18 @@ function calcStandings(){
     else if(f.home_score < f.away_score){ a.g++; h.m++; a.p+=3; }
     else { h.b++; a.b++; h.p++; a.p++; }
   });
-  
   tbl.forEach(r => r.av = r.ag - r.yg);
   tbl.sort((a,b) => b.p-a.p || b.av-a.av || b.ag-a.ag || a.name.localeCompare(b.name));
   return tbl;
 }
 
 function generateFixtureRounds(format){
-  const ps = allProfiles.filter(p => !p.is_admin);
+  const ps = allProfiles.slice();
   if(ps.length < 2) return [];
-  
-  const isOdd = ps.length % 2 === 1;
-  if(isOdd) ps.push({id:'__BYE__', display_name:'BYE'});
-  
+  if(ps.length % 2 === 1) ps.push({id:'__BYE__', display_name:'BYE'});
   const n = ps.length, rounds = n - 1, half = n / 2;
   const arr = ps.slice(1);
   const fixtures = [];
-  
   for(let r = 0; r < rounds; r++){
     for(let i = 0; i < half; i++){
       let home, away;
@@ -212,17 +182,14 @@ function generateFixtureRounds(format){
       if(r % 2 === 1){ const t = home; home = away; away = t; }
       if(home.id === '__BYE__' || away.id === '__BYE__') continue;
       fixtures.push({
-        round: r + 1,
-        home_id: home.id, away_id: away.id,
+        round: r + 1, home_id: home.id, away_id: away.id,
         status: 'open', season: leagueData.season || 1
       });
     }
   }
-  
   if(format === 'double'){
     const second = fixtures.map(f => ({
-      round: f.round + rounds,
-      home_id: f.away_id, away_id: f.home_id,
+      round: f.round + rounds, home_id: f.away_id, away_id: f.home_id,
       status: 'open', season: leagueData.season || 1
     }));
     return fixtures.concat(second);
@@ -230,22 +197,27 @@ function generateFixtureRounds(format){
   return fixtures;
 }
 
-// =====================================================
-// RENDER
-// =====================================================
 function renderUser(){
+  // Sidebar
   $('meName').textContent = currentUser.display_name;
   $('meAv').textContent = initials(currentUser.display_name);
-  $('meAdmin').style.display = currentUser.is_admin ? 'inline-block' : 'none';
-  $('tabAdmin').style.display = currentUser.is_admin ? 'block' : 'none';
+  $('meRole').textContent = currentUser.is_admin ? 'Admin' : 'Oyuncu';
+  // Mobile
+  $('meNameMobile').textContent = currentUser.display_name;
+  $('meAvMobile').textContent = initials(currentUser.display_name);
+  // Admin nav
   $('navAdmin').style.display = currentUser.is_admin ? 'flex' : 'none';
+  $('navAdminMobile').style.display = currentUser.is_admin ? 'flex' : 'none';
+  // Header
   $('heroLeague').textContent = (leagueData.name || 'Lig').toUpperCase();
-  $('heroSub').textContent = `Sezon ${leagueData.season || 1} · ${allProfiles.filter(p => !p.is_admin).length} oyuncu`;
+  $('heroSub').textContent = `Sezon ${leagueData.season || 1} · ${allProfiles.length} oyuncu`;
+  $('seasonBadge').textContent = `Sezon ${leagueData.season || 1}`;
 }
 
 function renderAll(){
   renderStandings();
   renderMyMatches();
+  renderSidePanel();
   renderFixtures();
   renderCup();
   renderScorers();
@@ -259,12 +231,12 @@ function renderStandings(){
   const myRow = standings.find(s => s.id === currentUser.id);
   $('hStanding').textContent = myRank > 0 ? '#'+myRank : '—';
   $('hPoints').textContent = myRow ? myRow.p : '0';
-  
   const pendingForMe = allMatches.filter(f => {
     if(f.home_id !== currentUser.id && f.away_id !== currentUser.id) return false;
     return f.status === 'pending' && f.proposed_by && f.proposed_by !== currentUser.id;
   }).length;
   $('hPending').textContent = pendingForMe;
+  $('hTotalMatches').textContent = allMatches.filter(f => f.status === 'played').length;
   
   if(allMatches.length === 0){
     $('standingsContainer').innerHTML = '<div class="empty-msg">Henüz fikstür yok.<br/><br/>' +
@@ -276,7 +248,7 @@ function renderStandings(){
   }
   
   const total = allProfiles.length;
-  let html = '<div class="table-wrap"><div class="table-head"><div>#</div><div>Oyuncu</div><div>O</div><div>G</div><div>A</div><div>P</div></div>';
+  let html = '<div class="table-head"><div>#</div><div>Oyuncu</div><div>O</div><div>G</div><div class="col-b">B</div><div class="col-m">M</div><div>AG</div><div class="col-yg">YG</div><div>P</div></div>';
   standings.forEach((s, idx) => {
     const rank = idx + 1;
     let cls = '';
@@ -287,11 +259,14 @@ function renderStandings(){
     html += `<div class="row ${meCls}">
       <div class="rank ${cls}">${rank}</div>
       <div class="player"><div class="avatar">${initials(s.name)}</div><div class="pname">${s.name}</div></div>
-      <div class="num">${s.o}</div><div class="num">${s.g}</div>
+      <div class="num">${s.o}</div>
+      <div class="num">${s.g}</div>
+      <div class="num col-b">${s.b}</div>
+      <div class="num col-m">${s.m}</div>
       <div class="num">${s.av>0?'+'+s.av:s.av}</div>
+      <div class="num col-yg">${s.yg}</div>
       <div class="pts">${s.p}</div></div>`;
   });
-  html += '</div>';
   $('standingsContainer').innerHTML = html;
 }
 
@@ -308,6 +283,46 @@ function renderMyMatches(){
   $('myMatches').innerHTML = list.map(matchCard).join('');
 }
 
+function renderSidePanel(){
+  // My next match summary
+  const nextMatch = allMatches.find(f => 
+    (f.home_id === currentUser.id || f.away_id === currentUser.id) && f.status !== 'played'
+  );
+  if(nextMatch){
+    const opp = nextMatch.home_id === currentUser.id ? findProfile(nextMatch.away_id) : findProfile(nextMatch.home_id);
+    let statusText = 'Oynanmadı';
+    if(nextMatch.status === 'pending'){
+      statusText = nextMatch.proposed_by === currentUser.id ? 'Onay bekliyor' : 'Onayını bekliyor';
+    } else if(nextMatch.status === 'disputed'){
+      statusText = 'İhtilaflı';
+    }
+    $('myMatchesSummary').innerHTML = `<div class="big">vs ${opp ? opp.display_name : '?'}</div><div style="font-size:11px;color:var(--ink-mute);margin-top:4px">Hafta ${nextMatch.round} · ${statusText}</div>`;
+  } else {
+    $('myMatchesSummary').innerHTML = '<div style="font-size:12px;color:var(--ink-mute)">Yaklaşan maç yok</div>';
+  }
+
+  // Top scorer
+  const scorers = calcSimpleScorers();
+  if(scorers.length > 0){
+    const top = scorers[0];
+    $('topScorerSummary').innerHTML = `<div style="display:flex;align-items:center;gap:10px"><div class="avatar">${initials(top.name)}</div><div style="flex:1"><div style="font-weight:600">${top.name}</div><div style="font-size:11px;color:var(--ink-mute)">${top.matches} maç</div></div><div style="font-family:'JetBrains Mono';font-weight:700;color:var(--accent);font-size:18px">${top.goals}</div></div>`;
+  } else {
+    $('topScorerSummary').innerHTML = '<div style="font-size:12px;color:var(--ink-mute)">Henüz gol yok</div>';
+  }
+
+  // Recent results
+  const recent = allMatches.filter(f => f.status === 'played').slice(-3).reverse();
+  if(recent.length > 0){
+    $('recentResults').innerHTML = recent.map(f => {
+      const h = findProfile(f.home_id), a = findProfile(f.away_id);
+      if(!h||!a) return '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:12px"><span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${h.display_name}</span><span style="font-family:'JetBrains Mono';font-weight:700;padding:0 8px">${f.home_score}-${f.away_score}</span><span style="flex:1;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${a.display_name}</span></div>`;
+    }).join('');
+  } else {
+    $('recentResults').innerHTML = '<div style="font-size:12px;color:var(--ink-mute)">Henüz oynanmadı</div>';
+  }
+}
+
 function renderFixtures(){
   if(allMatches.length === 0){
     $('fixtureList').innerHTML = '<div class="empty-msg">Henüz fikstür yok.</div>';
@@ -316,8 +331,15 @@ function renderFixtures(){
   let list = allMatches.slice();
   if(fixtureFilter === 'pending') list = list.filter(f => f.status !== 'played');
   if(fixtureFilter === 'played') list = list.filter(f => f.status === 'played');
-  list.sort((a,b) => (a.round || 0) - (b.round || 0) || new Date(a.created_at || 0) - new Date(b.created_at || 0));
-  $('fixtureList').innerHTML = list.map(matchCard).join('');
+  const grouped = {};
+  list.forEach(f => { if(!grouped[f.round]) grouped[f.round]=[]; grouped[f.round].push(f); });
+  let html = '';
+  Object.keys(grouped).sort((a,b) => parseInt(a)-parseInt(b)).forEach(r => {
+    html += `<div class="round-group">
+      <div class="round-label">Hafta ${r}</div>
+      ${grouped[r].map(matchCard).join('')}</div>`;
+  });
+  $('fixtureList').innerHTML = html;
   $('filterAllBtn').classList.toggle('primary', fixtureFilter==='all');
   $('filterPendingBtn').classList.toggle('primary', fixtureFilter==='pending');
   $('filterPlayedBtn').classList.toggle('primary', fixtureFilter==='played');
@@ -328,7 +350,6 @@ function matchCard(f){
   if(!home || !away) return '';
   let scoreHTML, metaHTML;
   const meIn = (f.home_id === currentUser.id || f.away_id === currentUser.id);
-  
   if(f.status === 'played'){
     scoreHTML = `<div class="score">${f.home_score}–${f.away_score}</div>`;
     metaHTML = `<div><span class="pill ok">✓ Tamamlandı</span></div>
@@ -345,9 +366,8 @@ function matchCard(f){
     metaHTML = `<div>İhtilaflı</div><span class="pill bad">Yöneticide</span>`;
   } else {
     scoreHTML = `<div class="score empty">– : –</div>`;
-    metaHTML = `<div></div><span class="pill wait">Oynanmadı</span>`;
+    metaHTML = `<div>Hafta ${f.round}</div><span class="pill wait">Oynanmadı</span>`;
   }
-  
   const clickable = (meIn && f.status!=='played' && f.status!=='disputed') || isAdmin();
   return `<div class="match ${f.status}" data-id="${f.id}" ${clickable?'data-clickable="1"':''}>
     <div class="side"><div class="avatar">${initials(home.display_name)}</div><div class="pname">${home.display_name}</div></div>
@@ -356,20 +376,22 @@ function matchCard(f){
     <div class="match-meta">${metaHTML}</div></div>`;
 }
 
-function renderScorers(){
-  // Şimdilik sadece atılan goller (gol kralı detayı v2'de)
+function calcSimpleScorers(){
   const map = {};
-  allProfiles.filter(p => !p.is_admin).forEach(p => { map[p.id] = {id:p.id, name:p.display_name, goals:0, matches:0}; });
+  allProfiles.forEach(p => { map[p.id] = {id:p.id, name:p.display_name, goals:0, matches:0}; });
   allMatches.filter(f => f.status === 'played').forEach(f => {
     if(map[f.home_id]){ map[f.home_id].goals += f.home_score; map[f.home_id].matches++; }
     if(map[f.away_id]){ map[f.away_id].goals += f.away_score; map[f.away_id].matches++; }
   });
-  const list = Object.values(map).filter(s => s.goals > 0).sort((a,b) => b.goals-a.goals || a.name.localeCompare(b.name));
+  return Object.values(map).filter(s => s.goals > 0).sort((a,b) => b.goals-a.goals || a.name.localeCompare(b.name));
+}
+
+function renderScorers(){
+  const list = calcSimpleScorers();
   const total = list.reduce((s,r) => s + r.goals, 0);
   $('totalGoals').textContent = total + ' gol';
-  
   if(list.length === 0){
-    $('scorersList').innerHTML = '<div style="padding:18px;text-align:center;color:var(--ink-dim);font-size:13px">Henüz gol atılmadı</div>';
+    $('scorersList').innerHTML = '<div style="padding:24px;text-align:center;color:var(--ink-dim);font-size:13px">Henüz gol atılmadı</div>';
     return;
   }
   $('scorersList').innerHTML = list.map((s, i) => {
@@ -384,7 +406,7 @@ function renderScorers(){
 function renderCup(){
   if(!cupData){
     $('cupTitle').textContent = 'Sezon Kupası';
-    $('cupContainer').innerHTML = `<div class="cup-empty"><p>Henüz aktif kupa yok.</p>
+    $('cupContainer').innerHTML = `<div class="cup-empty"><p style="margin:0 0 12px">Henüz aktif kupa yok.</p>
       ${isAdmin() ? '<button class="btn primary" id="goAdminCupBtn" style="padding:9px 16px">Yönetim → Kupa Başlat</button>' : '<small>Yönetici başlattığında burada görünecek.</small>'}
       </div>`;
     const b = $('goAdminCupBtn');
@@ -394,18 +416,14 @@ function renderCup(){
   $('cupTitle').textContent = cupData.name;
   const sizeNames = {16:['1/8 Final','Çeyrek','Yarı','Final'], 8:['Çeyrek','Yarı','Final'], 4:['Yarı','Final']};
   const titles = sizeNames[cupData.size];
-  
-  // Group cup matches by round
   const byRound = {};
   cupMatches.forEach(m => { if(!byRound[m.round_index]) byRound[m.round_index]=[]; byRound[m.round_index].push(m); });
   Object.keys(byRound).forEach(k => byRound[k].sort((a,b) => a.pair_index - b.pair_index));
-  
   const html = Object.keys(byRound).sort((a,b) => parseInt(a)-parseInt(b)).map(ri => {
     const round = byRound[ri];
-    return `<div class="round"><div class="round-title">${titles[parseInt(ri)]}</div>
+    return `<div class="round-col"><div class="round-title">${titles[parseInt(ri)]}</div>
       ${round.map(p => cupPairHTML(p, parseInt(ri))).join('')}</div>`;
   }).join('');
-  
   $('cupContainer').innerHTML = `<div class="bracket"><div class="bracket-inner">${html}</div></div>`;
 }
 
@@ -428,12 +446,9 @@ function cupPairHTML(p, roundIdx){
 
 async function renderAdmin(){
   if(!isAdmin()) return;
-  
   $('adminLeagueName').value = leagueData.name || '';
   $('adminFormat').value = leagueData.format || 'double';
   $('adminDeadlineDays').value = leagueData.match_deadline_days || 14;
-  
-  // Pending users
   try {
     const pending = await Profiles.listPending();
     $('pendingCount').textContent = pending.length;
@@ -451,178 +466,21 @@ async function renderAdmin(){
   } catch(e){
     $('pendingList').innerHTML = '<div style="color:var(--bad);font-size:12px;padding:8px">Yüklenemedi</div>';
   }
-  
-  // Approved players
-  const leaguePlayers = allProfiles.filter(p => !p.is_admin);
-  $('playerCount').textContent = leaguePlayers.length;
-  $('playerList').innerHTML = leaguePlayers.map(p => `
+  $('playerCount').textContent = allProfiles.length;
+  $('playerList').innerHTML = allProfiles.map(p => `
     <div class="player-item">
       <div class="avatar">${initials(p.display_name)}</div>
-      <div class="pname">${p.display_name}</div>
+      <div class="pname">${p.display_name}${p.is_admin?' <span class="badge-admin">★ ADMIN</span>':''}</div>
     </div>`).join('');
-
-  renderAdminMatches();
 }
 
-
-function renderAdminMatches(){
-  if(!isAdmin() || !$('adminMatchList')) return;
-
-  if(allMatches.length === 0){
-    $('adminMatchList').innerHTML = '<div style="padding:12px;text-align:center;color:var(--ink-mute);font-size:12px">Henüz maç yok</div>';
-    return;
-  }
-
-  const statusLabel = {
-    open: 'Oynanmadı',
-    pending: 'Onay Bekliyor',
-    played: 'Tamamlandı',
-    disputed: 'İtirazlı'
-  };
-
-  const list = allMatches
-    .slice()
-    .sort((a,b) => (a.round || 0) - (b.round || 0) || new Date(a.created_at || 0) - new Date(b.created_at || 0));
-
-  $('adminMatchList').innerHTML = list.map(f => {
-    const home = findProfile(f.home_id);
-    const away = findProfile(f.away_id);
-    if(!home || !away) return '';
-
-    const score = f.status === 'played'
-      ? `${f.home_score} - ${f.away_score}`
-      : f.status === 'pending'
-        ? `${f.proposed_home} - ${f.proposed_away}`
-        : '—';
-
-    return `
-      <div class="player-item">
-        <div class="pname">${home.display_name} - ${away.display_name}</div>
-        <div class="pcode">${score}</div>
-        <div class="pcode">${statusLabel[f.status] || f.status}</div>
-        <button class="approve" onclick="window.adminEditMatch('${f.id}')">Düzenle</button>
-        <button class="reject" onclick="window.adminResetMatch('${f.id}')">Sıfırla</button>
-      </div>`;
-  }).join('');
-}
-
-window.adminEditMatch = function(matchId){
-  const f = allMatches.find(x => x.id === matchId);
-  if(!f) return;
-
-  const home = findProfile(f.home_id);
-  const away = findProfile(f.away_id);
-  if(!home || !away) return;
-
-  const hs = f.status === 'played' ? f.home_score : (f.proposed_home ?? '');
-  const as = f.status === 'played' ? f.away_score : (f.proposed_away ?? '');
-
-  openGenericModal({
-    title: 'Maçı Düzenle',
-    body: `<div class="who">${home.display_name} vs ${away.display_name}</div>
-      <div class="info-note">Admin olarak skoru doğrudan tamamlanmış sonuç yaparsın.</div>
-      <div class="score-input">
-        <div class="si-side">
-          <div class="pname">${home.display_name}</div>
-          <input type="number" min="0" max="30" id="adminHomeScore" class="score-num" value="${hs}" />
-        </div>
-        <div class="si-dash">—</div>
-        <div class="si-side">
-          <div class="pname">${away.display_name}</div>
-          <input type="number" min="0" max="30" id="adminAwayScore" class="score-num" value="${as}" />
-        </div>
-      </div>`,
-    actions: [
-      {label:'İptal', cls:'ghost', fn: closeGenericModal},
-      {label:'Kaydet', cls:'primary', fn: async () => {
-        const h = parseInt($('adminHomeScore').value);
-        const a = parseInt($('adminAwayScore').value);
-
-        if(isNaN(h) || isNaN(a) || h < 0 || a < 0 || h > 30 || a > 30){
-          toast('Geçerli skor gir','warn');
-          return;
-        }
-
-        setLoading(true);
-        try {
-          await Matches.update(f.id, {
-            status: 'played',
-            home_score: h,
-            away_score: a,
-            proposed_by: null,
-            proposed_home: null,
-            proposed_away: null,
-            played_at: new Date().toISOString()
-          });
-          await reload();
-          closeGenericModal();
-          toast('Maç güncellendi ✓','ok');
-        } catch(err){
-          toast('Hata: ' + err.message, 'bad');
-        }
-        setLoading(false);
-      }}
-    ]
-  });
-
-  setTimeout(() => $('adminHomeScore')?.focus(), 200);
-};
-
-window.adminResetMatch = function(matchId){
-  const f = allMatches.find(x => x.id === matchId);
-  if(!f) return;
-
-  const home = findProfile(f.home_id);
-  const away = findProfile(f.away_id);
-  if(!home || !away) return;
-
-  openGenericModal({
-    title: 'Maçı Sıfırla',
-    body: `<div class="info-note bad">${home.display_name} - ${away.display_name} maçı oynanmamış hale getirilecek.</div>`,
-    actions: [
-      {label:'İptal', cls:'ghost', fn: closeGenericModal},
-      {label:'Sıfırla', cls:'danger', fn: async () => {
-        setLoading(true);
-        try {
-          await Matches.update(f.id, {
-            status: 'open',
-            home_score: null,
-            away_score: null,
-            proposed_by: null,
-            proposed_home: null,
-            proposed_away: null,
-            proposed_home_scorers: [],
-            proposed_away_scorers: [],
-            home_scorers: [],
-            away_scorers: [],
-            played_at: null
-          });
-          await reload();
-          closeGenericModal();
-          toast('Maç sıfırlandı','ok');
-        } catch(err){
-          toast('Hata: ' + err.message, 'bad');
-        }
-        setLoading(false);
-      }}
-    ]
-  });
-};
-
-// =====================================================
-// PAGE NAV
-// =====================================================
 function showPage(name){
-  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.page===name));
-  document.querySelectorAll('.nav-btn').forEach(t => t.classList.toggle('active', t.dataset.page===name));
+  document.querySelectorAll('.nav-item, .nav-btn').forEach(t => t.classList.toggle('active', t.dataset.page===name));
   document.querySelectorAll('.page').forEach(p => p.classList.toggle('active', p.id==='page-'+name));
   window.scrollTo(0,0);
 }
 window.showPage = showPage;
 
-// =====================================================
-// MATCH MODAL
-// =====================================================
 function openMatchModal(id){
   const f = allMatches.find(x => x.id === id);
   if(!f) return;
@@ -631,10 +489,8 @@ function openMatchModal(id){
   $('mHome').textContent = home.display_name;
   $('mAway').textContent = away.display_name;
   $('modalWho').textContent = `${home.display_name} vs ${away.display_name} · Hafta ${f.round}`;
-  
   let title = 'Skor Gir', info = '⚡ Skoru girdiğinde rakibin onayına gönderilecek.';
   let hs = '', as = '', saveLabel = 'Kaydet', extraButton = null;
-  
   if(f.status === 'played'){
     title = 'Maç Düzenle (Admin)';
     info = '⚙️ Yönetici olarak düzenliyorsun.';
@@ -658,14 +514,12 @@ function openMatchModal(id){
     info = '⚖️ Sen karar veriyorsun.';
     hs = f.proposed_home || ''; as = f.proposed_away || '';
   }
-  
   $('modalTitle').textContent = title;
   $('modalInfo').textContent = info;
   $('hScore').value = hs;
   $('aScore').value = as;
-  
   const actionsEl = $('modalActions');
-  actionsEl.className = 'actions' + (extraButton ? ' three' : '');
+  actionsEl.className = 'actions' + (extraButton?' three':'');
   let btnsHTML = '<button class="btn ghost" id="modalCancel">İptal</button>';
   if(extraButton) btnsHTML += `<button class="btn ${extraButton.cls}" id="modalExtra">${extraButton.label}</button>`;
   btnsHTML += `<button class="btn primary" id="modalSave">${saveLabel}</button>`;
@@ -673,7 +527,6 @@ function openMatchModal(id){
   $('modalCancel').onclick = closeMatchModal;
   $('modalSave').onclick = saveMatchModal;
   if(extraButton) $('modalExtra').onclick = extraButton.fn;
-  
   $('modalBg').classList.add('show');
   setTimeout(() => $('hScore').focus(), 200);
 }
@@ -684,39 +537,25 @@ async function saveMatchModal(){
   const hs = parseInt($('hScore').value);
   const as = parseInt($('aScore').value);
   if(isNaN(hs)||isNaN(as)||hs<0||as<0||hs>30||as>30){ toast('Geçerli skor gir','warn'); return; }
-  
   const meIn = (f.home_id === currentUser.id || f.away_id === currentUser.id);
   setLoading(true);
-  
   try {
     if(isAdmin() && (f.status === 'played' || f.status === 'disputed')){
-      await Matches.update(f.id, {
-        status: 'played', home_score: hs, away_score: as,
-        proposed_by: null, proposed_home: null, proposed_away: null
-      });
+      await Matches.update(f.id, {status: 'played', home_score: hs, away_score: as, proposed_by: null, proposed_home: null, proposed_away: null});
       toast('Güncellendi ✓','ok');
     } else if(f.status === 'pending' && f.proposed_by !== currentUser.id){
       if(f.proposed_home === hs && f.proposed_away === as){
-        await Matches.update(f.id, {
-          status: 'played', home_score: hs, away_score: as,
-          proposed_by: null, proposed_home: null, proposed_away: null
-        });
+        await Matches.update(f.id, {status: 'played', home_score: hs, away_score: as, proposed_by: null, proposed_home: null, proposed_away: null});
         toast('Onaylandı ✓','ok');
       } else {
-        await Matches.update(f.id, {
-          proposed_by: currentUser.id, proposed_home: hs, proposed_away: as
-        });
+        await Matches.update(f.id, {proposed_by: currentUser.id, proposed_home: hs, proposed_away: as});
         toast('Karşı öneri gönderildi','warn');
       }
     } else if(meIn){
-      await Matches.update(f.id, {
-        status: 'pending', proposed_by: currentUser.id, proposed_home: hs, proposed_away: as
-      });
+      await Matches.update(f.id, {status: 'pending', proposed_by: currentUser.id, proposed_home: hs, proposed_away: as});
       toast('Önerildi, onay bekleniyor','ok');
     } else if(isAdmin()){
-      await Matches.update(f.id, {
-        status: 'played', home_score: hs, away_score: as
-      });
+      await Matches.update(f.id, {status: 'played', home_score: hs, away_score: as});
       toast('Kaydedildi ✓','ok');
     }
     await reload();
@@ -729,9 +568,6 @@ async function saveMatchModal(){
 
 function closeMatchModal(){ $('modalBg').classList.remove('show'); }
 
-// =====================================================
-// CUP MODAL
-// =====================================================
 window.openCupModal = function(matchId){
   const m = cupMatches.find(x => x.id === matchId);
   if(!m) return;
@@ -754,7 +590,6 @@ window.openCupModal = function(matchId){
         setLoading(true);
         try {
           await Cup.updateMatch(m.id, {home_score: h, away_score: a, is_done: true});
-          // Find next pair
           const nextRound = cupMatches.filter(x => x.round_index === m.round_index + 1);
           if(nextRound.length > 0){
             const nextPair = nextRound[Math.floor(m.pair_index / 2)];
@@ -775,9 +610,6 @@ window.openCupModal = function(matchId){
   setTimeout(() => $('cupH').focus(), 200);
 };
 
-// =====================================================
-// GENERIC MODAL
-// =====================================================
 function openGenericModal(opts){
   let html = `<h3>${opts.title}</h3><div style="margin:8px 0">${opts.body}</div>
     <div class="actions" style="grid-template-columns:repeat(${opts.actions.length},1fr)">`;
@@ -794,9 +626,6 @@ function openGenericModal(opts){
 function closeGenericModal(){ $('genericModalBg').classList.remove('show'); }
 window.closeGenericModal = closeGenericModal;
 
-// =====================================================
-// SHARE
-// =====================================================
 window.shareMatch = function(id){
   const f = allMatches.find(x => x.id === id);
   if(!f) return;
@@ -805,9 +634,6 @@ window.shareMatch = function(id){
   window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank');
 };
 
-// =====================================================
-// ADMIN ACTIONS
-// =====================================================
 window.approveUser = async function(userId){
   setLoading(true);
   try {
@@ -823,7 +649,7 @@ window.approveUser = async function(userId){
 window.rejectUser = function(userId){
   openGenericModal({
     title: 'Üyeyi Sil',
-    body: '<div class="info-note bad">Bu kullanıcı silinecek. Tekrar kayıt olmadan giremez.</div>',
+    body: '<div class="info-note bad">Bu kullanıcı silinecek.</div>',
     actions: [
       {label:'İptal', cls:'ghost', fn: closeGenericModal},
       {label:'Sil', cls:'danger', fn: async () => {
@@ -848,13 +674,9 @@ async function reload(){
   renderAll();
 }
 
-// =====================================================
-// INIT
-// =====================================================
 function init(){
   if(!initSupabase()) return;
 
-  // Auth tabs
   document.querySelectorAll('.auth-tab').forEach(t => {
     t.addEventListener('click', () => {
       document.querySelectorAll('.auth-tab').forEach(x => x.classList.remove('active'));
@@ -883,7 +705,8 @@ function init(){
     $('authScreen').style.display = 'flex';
   });
 
-  $('meChip').addEventListener('click', () => {
+  // Account chip (sidebar + mobile)
+  const meChipFn = () => {
     openGenericModal({
       title: 'Hesap',
       body: `<div class="who">${currentUser.display_name} · ${currentUser.email}${currentUser.is_admin?' · <span class="badge-admin">Admin</span>':''}</div>`,
@@ -892,8 +715,11 @@ function init(){
         {label:'Kapat', cls:'ghost', fn: closeGenericModal}
       ]
     });
-  });
+  };
+  $('meChip').addEventListener('click', meChipFn);
+  $('meChipMobile').addEventListener('click', meChipFn);
 
+  // Page nav (sidebar + mobile bottom)
   document.querySelectorAll('[data-page]').forEach(el => {
     el.addEventListener('click', () => showPage(el.dataset.page));
   });
@@ -919,7 +745,7 @@ function init(){
   });
 
   $('generateFixtureBtn').addEventListener('click', () => {
-    if(allProfiles.filter(p => !p.is_admin).length < 2){ toast('En az 2 onaylı oyuncu gerekli','warn'); return; }
+    if(allProfiles.length < 2){ toast('En az 2 onaylı oyuncu gerekli','warn'); return; }
     const doIt = async () => {
       setLoading(true);
       try {
@@ -948,7 +774,7 @@ function init(){
   });
 
   $('startCupBtn').addEventListener('click', () => {
-    const sizes = [4,8,16].filter(s => s <= allProfiles.filter(p => !p.is_admin).length);
+    const sizes = [4,8,16].filter(s => s <= allProfiles.length);
     if(sizes.length === 0){ toast('En az 4 oyuncu gerekli','warn'); return; }
     const btnHTML = sizes.map(s => `<button class="btn ghost" onclick="window.createCup(${s})">${s} kişi</button>`).join('');
     openGenericModal({
@@ -965,29 +791,21 @@ function init(){
       const standings = calcStandings();
       const qualified = standings.slice(0, size);
       if(qualified.length < size){ toast('Yeterli sıralama yok','warn'); setLoading(false); return; }
-      
       await Cup.deactivateOthers();
-      await Cup.deleteAll(); // önce eskileri sil
+      await Cup.deleteAll();
       const cup = await Cup.create(`Sezon ${leagueData.season || 1} Kupası`, size, leagueData.season || 1);
-      
       const matches = [];
-      // First round
       for(let i = 0; i < size/2; i++){
         matches.push({
           cup_id: cup.id, round_index: 0, pair_index: i,
-          home_id: qualified[i].id, away_id: qualified[size-1-i].id,
-          is_done: false
+          home_id: qualified[i].id, away_id: qualified[size-1-i].id, is_done: false
         });
       }
-      // Subsequent empty rounds
       let count = size/2, ri = 1;
       while(count > 1){
         count = count / 2;
         for(let i = 0; i < count; i++){
-          matches.push({
-            cup_id: cup.id, round_index: ri, pair_index: i,
-            home_id: null, away_id: null, is_done: false
-          });
+          matches.push({cup_id: cup.id, round_index: ri, pair_index: i, home_id: null, away_id: null, is_done: false});
         }
         ri++;
       }
@@ -1026,7 +844,6 @@ function init(){
     });
   });
 
-  // Match card clicks
   document.body.addEventListener('click', e => {
     const m = e.target.closest('.match[data-clickable="1"]');
     if(!m) return;
@@ -1036,7 +853,6 @@ function init(){
   $('modalBg').addEventListener('click', e => { if(e.target.id === 'modalBg') closeMatchModal(); });
   $('genericModalBg').addEventListener('click', e => { if(e.target.id === 'genericModalBg') closeGenericModal(); });
 
-  // Boot
   bootApp();
 }
 
